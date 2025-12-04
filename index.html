@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>골프 머니 게임 계산기</title>
+  <style>
+    body { font-family: sans-serif; padding: 16px; }
+    h1 { font-size: 20px; margin-bottom: 8px; }
+    .names { margin-bottom: 10px; }
+    .names input { width: 100px; margin-right: 6px; }
+    table { border-collapse: collapse; width: 100%; max-width: 1100px; font-size: 12px; }
+    th, td { border: 1px solid #ccc; padding: 4px; text-align: center; }
+    th { background: #f0f0f0; }
+    input[type="number"] { width: 50px; }
+    .totals { margin-top: 12px; max-width: 600px; }
+    .totals td, .totals th { border: 1px solid #ccc; padding: 4px; text-align: center; }
+    .controls { margin-bottom: 10px; }
+  </style>
+</head>
+<body>
+
+<h1>골프 머니 게임 계산기</h1>
+
+<div class="names">
+  플레이어 이름:
+  <input id="nameA" placeholder="A 이름" value="A">
+  <input id="nameB" placeholder="B 이름" value="B">
+  <input id="nameC" placeholder="C 이름" value="C">
+  <input id="nameD" placeholder="D 이름" value="D">
+</div>
+
+<div class="controls">
+  스킨 값 ($):
+  <input type="number" id="skinValue" value="2" step="0.5" />
+  <button onclick="calcAll()">계산하기</button>
+</div>
+
+<table id="scoreTable">
+  <thead>
+    <tr>
+      <th>Hole</th>
+      <th>Par</th>
+      <th id="thA">A</th>
+      <th id="thB">B</th>
+      <th id="thC">C</th>
+      <th id="thD">D</th>
+      <th>Rate</th>
+      <th id="netA">A Net</th>
+      <th id="netB">B Net</th>
+      <th id="netC">C Net</th>
+      <th id="netD">D Net</th>
+      <th>Skin Winner</th>
+    </tr>
+  </thead>
+  <tbody id="bodyRows"></tbody>
+</table>
+
+<table class="totals">
+  <tr>
+    <th></th>
+    <th id="sumA">A</th>
+    <th id="sumB">B</th>
+    <th id="sumC">C</th>
+    <th id="sumD">D</th>
+  </tr>
+  <tr>
+    <th>합계</th>
+    <td id="totalA"></td>
+    <td id="totalB"></td>
+    <td id="totalC"></td>
+    <td id="totalD"></td>
+  </tr>
+</table>
+
+<script>
+  const body = document.getElementById("bodyRows");
+  for (let h = 1; h <= 18; h++) {
+    body.innerHTML += `
+      <tr>
+        <td>${h}</td>
+        <td><input type="number" id="par_${h}" value="4"></td>
+        <td><input type="number" id="A_${h}"></td>
+        <td><input type="number" id="B_${h}"></td>
+        <td><input type="number" id="C_${h}"></td>
+        <td><input type="number" id="D_${h}"></td>
+        <td id="rate_${h}"></td>
+        <td id="netA_${h}"></td>
+        <td id="netB_${h}"></td>
+        <td id="netC_${h}"></td>
+        <td id="netD_${h}"></td>
+        <td id="skinWinner_${h}"></td>
+      </tr>`;
+  }
+
+  function updateNames() {
+    const nA = nameA.value || "A";
+    const nB = nameB.value || "B";
+    const nC = nameC.value || "C";
+    const nD = nameD.value || "D";
+
+    thA.innerText = nA;
+    thB.innerText = nB;
+    thC.innerText = nC;
+    thD.innerText = nD;
+
+    netA.innerText = nA + " Net";
+    netB.innerText = nB + " Net";
+    netC.innerText = nC + " Net";
+    netD.innerText = nD + " Net";
+
+    sumA.innerText = nA;
+    sumB.innerText = nB;
+    sumC.innerText = nC;
+    sumD.innerText = nD;
+  }
+
+  ["nameA","nameB","nameC","nameD"].forEach(id=>{
+    document.getElementById(id).addEventListener("input", updateNames);
+  });
+
+  updateNames();
+
+  function calcAll() {
+    let totalA=0,totalB=0,totalC=0,totalD=0;
+    let prevScores=null, prevPar=null;
+
+    const names = [nameA.value||"A", nameB.value||"B", nameC.value||"C", nameD.value||"D"];
+
+    for (let h=1; h<=18; h++) {
+      const par = +document.getElementById('par_'+h).value;
+      const scores = ['A','B','C','D'].map(p => +document.getElementById(p+'_'+h).value);
+      if (scores.some(isNaN)) break;
+
+      let rate=2;
+      if (h>1 && prevScores){
+        const hasBirdie = prevScores.some(s=>s<=prevPar-1);
+        const hasTriple = prevScores.some(s=>s>=prevPar+3);
+        const allSame = prevScores.every(s=>s===prevScores[0]);
+        rate = (hasBirdie||hasTriple||allSame)?4:2;
+      }
+      document.getElementById('rate_'+h).textContent = rate;
+
+      let net=[0,0,0,0];
+      for (let i=0;i<4;i++){
+        for (let j=i+1;j<4;j++){
+          const diff=(scores[j]-scores[i])*rate;
+          net[i]+=diff; net[j]-=diff;
+        }
+      }
+
+      totalA+=net[0]; totalB+=net[1]; totalC+=net[2]; totalD+=net[3];
+
+      document.getElementById('netA_'+h).textContent=net[0];
+      document.getElementById('netB_'+h).textContent=net[1];
+      document.getElementById('netC_'+h).textContent=net[2];
+      document.getElementById('netD_'+h).textContent=net[3];
+
+      const winnerIdx = scores.indexOf(Math.min(...scores));
+      document.getElementById('skinWinner_'+h).textContent = names[winnerIdx];
+
+      prevScores=scores; prevPar=par;
+    }
+
+    totalA.textContent=totalA;
+    totalB.textContent=totalB;
+    totalC.textContent=totalC;
+    totalD.textContent=totalD;
+  }
+</script>
+
+</body>
+</html>
